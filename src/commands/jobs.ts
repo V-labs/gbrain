@@ -1363,7 +1363,13 @@ export async function registerBuiltinHandlers(worker: MinionWorker, engine: Brai
 
   worker.register('backlinks', async (job) => {
     const { runBacklinksCore } = await import('./backlinks.ts');
-    const action: 'check' | 'fix' = job.data.action === 'check' ? 'check' : 'fix';
+    // [vlabs] Default to 'check', not 'fix': jobs submitted with an empty
+    // payload (the sync→embed→backlinks chains the server enqueues after
+    // ingestion) must never rewrite tracked brain pages with generated
+    // "Referenced in" timeline bullets. This mirrors the documented intent
+    // in src/core/cycle.ts:758 (runPhaseBacklinks). Explicit fix stays
+    // available via '{"action":"fix"}' or `gbrain check-backlinks fix`.
+    const action: 'check' | 'fix' = job.data.action === 'fix' ? 'fix' : 'check';
     const dir = typeof job.data.dir === 'string'
       ? job.data.dir
       : (await engine.getConfig('sync.repo_path')) ?? '.';
